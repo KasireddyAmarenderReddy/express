@@ -6,6 +6,7 @@ var app = module.exports = express()
 
 app.get('/', function(req, res){
   res.send('Hello New World');
+  res.send('Hello Master World');
 });
 
 /* istanbul ignore next */
