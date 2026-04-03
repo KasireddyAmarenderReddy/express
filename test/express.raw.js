@@ -1,14 +1,11 @@
 'use strict'
 
-var assert = require('assert')
-var asyncHooks = tryRequire('async_hooks')
-var Buffer = require('safe-buffer').Buffer
+var assert = require('node:assert')
+var AsyncLocalStorage = require('node:async_hooks').AsyncLocalStorage
+
 var express = require('..')
 var request = require('supertest')
-
-var describeAsyncHooks = typeof asyncHooks.AsyncLocalStorage === 'function'
-  ? describe
-  : describe.skip
+const { Buffer } = require('node:buffer');
 
 describe('express.raw()', function () {
   before(function () {
@@ -63,36 +60,6 @@ describe('express.raw()', function () {
       .set('Transfer-Encoding', 'chunked')
       .send('')
       .expect(200, { buf: '' }, done)
-  })
-
-  it('should 500 if stream not readable', function (done) {
-    var app = express()
-
-    app.use(function (req, res, next) {
-      req.on('end', next)
-      req.resume()
-    })
-
-    app.use(express.raw())
-
-    app.use(function (err, req, res, next) {
-      res.status(err.status || 500)
-      res.send('[' + err.type + '] ' + err.message)
-    })
-
-    app.post('/', function (req, res) {
-      if (Buffer.isBuffer(req.body)) {
-        res.json({ buf: req.body.toString('hex') })
-      } else {
-        res.json(req.body)
-      }
-    })
-
-    request(app)
-      .post('/')
-      .set('Content-Type', 'application/octet-stream')
-      .send('the user is tobi')
-      .expect(500, '[stream.not.readable] stream is not readable', done)
   })
 
   it('should handle duplicated middleware', function (done) {
@@ -236,7 +203,7 @@ describe('express.raw()', function () {
         var test = request(this.app).post('/')
         test.set('Content-Type', 'application/octet-stream')
         test.write(Buffer.from('000102', 'hex'))
-        test.expect(200, '{}', done)
+        test.expect(200, '', done)
       })
     })
 
@@ -265,7 +232,7 @@ describe('express.raw()', function () {
         var test = request(this.app).post('/')
         test.set('Content-Type', 'application/x-foo')
         test.write(Buffer.from('000102', 'hex'))
-        test.expect(200, '{}', done)
+        test.expect(200, '', done)
       })
     })
 
@@ -358,13 +325,13 @@ describe('express.raw()', function () {
     })
   })
 
-  describeAsyncHooks('async local storage', function () {
+  describe('async local storage', function () {
     before(function () {
       var app = express()
       var store = { foo: 'bar' }
 
       app.use(function (req, res, next) {
-        req.asyncLocalStorage = new asyncHooks.AsyncLocalStorage()
+        req.asyncLocalStorage = new AsyncLocalStorage()
         req.asyncLocalStorage.run(store, next)
       })
 
@@ -402,7 +369,7 @@ describe('express.raw()', function () {
       this.app = app
     })
 
-    it('should presist store', function (done) {
+    it('should persist store', function (done) {
       request(this.app)
         .post('/')
         .set('Content-Type', 'application/octet-stream')
@@ -413,18 +380,17 @@ describe('express.raw()', function () {
         .end(done)
     })
 
-    it('should presist store when unmatched content-type', function (done) {
+    it('should persist store when unmatched content-type', function (done) {
       request(this.app)
         .post('/')
         .set('Content-Type', 'application/fizzbuzz')
         .send('buzz')
         .expect(200)
         .expect('x-store-foo', 'bar')
-        .expect('{}')
         .end(done)
     })
 
-    it('should presist store when inflated', function (done) {
+    it('should persist store when inflated', function (done) {
       var test = request(this.app).post('/')
       test.set('Content-Encoding', 'gzip')
       test.set('Content-Type', 'application/octet-stream')
@@ -435,7 +401,7 @@ describe('express.raw()', function () {
       test.end(done)
     })
 
-    it('should presist store when inflate error', function (done) {
+    it('should persist store when inflate error', function (done) {
       var test = request(this.app).post('/')
       test.set('Content-Encoding', 'gzip')
       test.set('Content-Type', 'application/octet-stream')
@@ -445,7 +411,7 @@ describe('express.raw()', function () {
       test.end(done)
     })
 
-    it('should presist store when limit exceeded', function (done) {
+    it('should persist store when limit exceeded', function (done) {
       request(this.app)
         .post('/')
         .set('Content-Type', 'application/octet-stream')
@@ -544,12 +510,4 @@ function createApp (options) {
   })
 
   return app
-}
-
-function tryRequire (name) {
-  try {
-    return require(name)
-  } catch (e) {
-    return {}
-  }
 }

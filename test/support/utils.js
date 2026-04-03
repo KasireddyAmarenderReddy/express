@@ -4,8 +4,8 @@
  * @private
  */
 
-var assert = require('assert');
-var Buffer = require('safe-buffer').Buffer
+var assert = require('node:assert');
+const { Buffer } = require('node:buffer');
 
 /**
  * Module exports.
@@ -77,13 +77,10 @@ function getMajorVersion(versionString) {
 }
 
 function shouldSkipQuery(versionString) {
-  // Temporarily skipping this test on 22
-  // update this implementation to run on those release lines on supported versions once they exist
-  // upstream tracking https://github.com/nodejs/node/pull/51719
+  // Skipping HTTP QUERY tests below Node 22, QUERY wasn't fully supported by Node until 22
+  // we could update this implementation to run on supported versions of 21 once they exist
+  // upstream tracking https://github.com/nodejs/node/issues/51562
   // express tracking issue: https://github.com/expressjs/express/issues/5615
-  var majorsToSkip = {
-    "22": true
-  }
-  return majorsToSkip[getMajorVersion(versionString)]
+  return Number(getMajorVersion(versionString)) < 22
 }
 
